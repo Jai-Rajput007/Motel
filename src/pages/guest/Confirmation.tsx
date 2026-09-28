@@ -99,7 +99,7 @@ export default function Confirmation() {
             <p className="font-mono text-2xl tracking-widest">{b.ref}</p>
             <QRCodeSVG value={`VIRASAT:${b.ref}:${b.checkIn}`} size={150} fgColor="#1C1A17" bgColor="transparent" />
             <p className="text-xs text-stone">Show this code at check‑in for express arrival</p>
-            <p className="text-xs text-stone">Room {b.roomNo} provisionally assigned</p>
+            <p className="text-xs text-stone">{b.roomNo ? `Room ${b.roomNo} provisionally assigned` : 'Your room will be assigned on arrival'}</p>
           </div>
         </div>
 

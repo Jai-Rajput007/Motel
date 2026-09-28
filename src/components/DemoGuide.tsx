@@ -31,7 +31,7 @@ export default function DemoGuide({ admin = false }: { admin?: boolean }) {
         onClick={() => setOpen(!open)}
         className={clsx('fixed z-40 flex items-center gap-2 rounded-full px-4 py-3 text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all', admin ? 'bottom-5 right-5 bg-gold text-kohl hover:bg-gold-2' : 'bottom-5 right-[84px] bg-kohl text-ivory hover:bg-sindoor')}
       >
-        <Play size={13} className={clsx(tourStep === null && 'animate-pulse')} /> {tourStep === null ? 'Take the demo tour' : `Tour ${tourStep + 1}/${TOUR.length}`}
+        <Play size={13} className={clsx(tourStep === null && 'animate-pulse')} /> <span className="hidden sm:inline">{tourStep === null ? 'Take the demo tour' : `Tour ${tourStep + 1}/${TOUR.length}`}</span><span className="sm:hidden">{tourStep === null ? 'Tour' : `${tourStep + 1}/${TOUR.length}`}</span>
       </button>
       <AnimatePresence>
         {open && (

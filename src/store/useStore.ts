@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { addDays, differenceInCalendarDays, parseISO } from 'date-fns'
 import { generateSeed } from '../data/seed'
 import { HOTELS, hotelById, roomTypeById } from '../data/hotels'
-import { findFreeRoom, quote } from '../lib/pricing'
+import { availability, findFreeRoom, quote } from '../lib/pricing'
 import { bookingRef, iso, nightsBetween, overlaps, todayISO, uid } from '../lib/utils'
 import type {
   AuditEntry, Automation, Booking, BookingSource, Campaign, FolioLine, Guest, HKStatus, InventoryItem, Lead, LeadStage,
@@ -106,6 +106,21 @@ export type State = Data & UI & Actions
 
 const now = () => new Date().toISOString()
 
+// Debounced localStorage writer — the demo dataset is large, so avoid serialising it on every keystroke.
+let pending: ReturnType<typeof setTimeout> | undefined
+let queued: [string, string] | null = null
+const flush = () => { if (queued) { try { localStorage.setItem(queued[0], queued[1]) } catch { /* ignore */ } queued = null } }
+if (typeof window !== 'undefined') window.addEventListener('pagehide', flush)
+const debouncedStorage = {
+  getItem: (k: string) => { try { return localStorage.getItem(k) } catch { return null } },
+  setItem: (k: string, v: string) => {
+    clearTimeout(pending)
+    queued = [k, v]
+    pending = setTimeout(flush, 400) // quota or private-mode failures are ignored — the demo keeps working in memory
+  },
+  removeItem: (k: string) => { try { localStorage.removeItem(k) } catch { /* ignore */ } },
+}
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -142,12 +157,37 @@ export const useStore = create<State>()(
 
       createBooking: (i) => {
         const s = get()
-        const room = findFreeRoom(i.roomTypeId, i.checkIn, i.checkOut, s.bookings, s.rooms)
-        if (!room) return null
+        if (availability(i.roomTypeId, i.checkIn, i.checkOut, s.bookings, s.rooms, s.stopSell) <= 0) return null
+        // Prefer a room free for the whole stay; otherwise leave unassigned for the front desk to allocate.
+        let room = findFreeRoom(i.roomTypeId, i.checkIn, i.checkOut, s.bookings, s.rooms)
+        if (!room) {
+          // Room optimiser: try to relocate conflicting future (not in-house) bookings to other rooms of the same type.
+          const typeRooms = s.rooms.filter((r) => r.roomTypeId === i.roomTypeId && r.hk !== 'out-of-order')
+          const live = (b: Booking) => b.status !== 'cancelled' && b.status !== 'no-show'
+          for (const cand of typeRooms) {
+            const conflicts = s.bookings.filter((b) => b.hotelId === cand.hotelId && b.roomNo === cand.number && live(b) && overlaps(b.checkIn, b.checkOut, i.checkIn, i.checkOut))
+            if (conflicts.some((c) => c.status !== 'confirmed')) continue
+            let pool = s.bookings
+            const moves: [string, string][] = []
+            for (const c of conflicts) {
+              const others = typeRooms.filter((r) => r.number !== cand.number)
+              const target = others.find((r) => !pool.some((b) => b.id !== c.id && b.hotelId === r.hotelId && b.roomNo === r.number && live(b) && overlaps(b.checkIn, b.checkOut, c.checkIn, c.checkOut)))
+              if (!target) { moves.length = 0; break }
+              moves.push([c.id, target.number])
+              pool = pool.map((b) => (b.id === c.id ? { ...b, roomNo: target.number } : b))
+            }
+            if (moves.length === conflicts.length) {
+              set({ bookings: pool })
+              moves.forEach(([id, no]) => get().log('Room optimiser', `${s.bookings.find((b) => b.id === id)?.ref} moved to room ${no}`))
+              room = cand
+              break
+            }
+          }
+        }
         const guest = get().upsertGuest({ ...i.guest, tags: ['Website booker'] })
         const q = quote({ roomTypeId: i.roomTypeId, checkIn: i.checkIn, checkOut: i.checkOut, ratePlanId: i.ratePlanId, addOns: i.addOns, adults: i.adults, children: i.children, promo: i.promo, overrides: s.rateOverrides })
         const b: Booking = {
-          id: uid('b'), ref: bookingRef(), hotelId: i.hotelId, roomTypeId: i.roomTypeId, roomNo: room.number, guestId: guest.id,
+          id: uid('b'), ref: bookingRef(), hotelId: i.hotelId, roomTypeId: i.roomTypeId, roomNo: room?.number ?? null, guestId: guest.id,
           checkIn: i.checkIn, checkOut: i.checkOut, adults: i.adults, children: i.children, ratePlanId: i.ratePlanId, addOns: i.addOns,
           roomTotal: q.roomTotal, addOnTotal: q.addOnTotal, discount: q.discount, tax: q.tax, total: q.total, paid: i.payNow ? q.total : 0,
           status: 'confirmed', source: i.source ?? 'Website', createdAt: todayISO(), specialRequests: [i.specialRequests, i.arrival ? `Arrival ~${i.arrival}` : ''].filter(Boolean).join(' · '), promo: q.promoValid ? i.promo?.toUpperCase() : undefined,
@@ -161,7 +201,7 @@ export const useStore = create<State>()(
         }))
         const hotel = hotelById(i.hotelId)
         get().notify('booking', `New ${b.source.toLowerCase()} booking ${b.ref} — ${roomTypeById(i.roomTypeId).name}, ${hotel.name}`)
-        get().log('Booking created', `${b.ref} · ${guest.firstName} ${guest.lastName} · ${hotel.name} · Room ${room.number}`)
+        get().log('Booking created', `${b.ref} · ${guest.firstName} ${guest.lastName} · ${hotel.name} · ${room ? `Room ${room.number}` : 'room to be assigned'}`)
         // Consume guest amenities for the stay (inventory link)
         const nights = nightsBetween(i.checkIn, i.checkOut)
         const amen = get().inventory.filter((x) => x.hotelId === i.hotelId && x.category === 'Amenities')
@@ -327,7 +367,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'virasat-demo-v1',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => debouncedStorage),
       partialize: (s) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { tourStep, ...rest } = s

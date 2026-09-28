@@ -122,7 +122,7 @@ function Timeline() {
             {TIMELINE.map((e, i) => (
               <Reveal key={e.year} delay={i * 0.12}>
                 <div className="relative mb-6 flex items-center gap-4 md:block">
-                  <span className="relative z-10 grid h-14 w-14 place-items-center rounded-full border border-gold/50 bg-kohl font-display text-lg text-gold-2">{e.year === 'Today' ? '✦' : e.year.slice(2)}</span>
+                  <span className="relative z-10 grid h-14 w-14 place-items-center rounded-full border border-gold/50 bg-kohl font-display text-lg text-gold-2">{['I', 'II', 'III', 'IV', 'V', 'VI'][i]}</span>
                 </div>
                 <p className="font-display text-3xl text-gold-2">{e.year}</p>
                 <p className="mt-2 font-display text-xl">{e.title}</p>

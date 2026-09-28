@@ -1,5 +1,11 @@
 # Virasat Palaces & Resorts — Portfolio Showcase Plan
 
+> **Status: implemented.** See `README.md` for how to run, deploy and pitch it.
+> Differences from the original plan:
+> - The 360° virtual tour became a full-screen gallery lightbox, because there are no free-licence panoramas for these properties.
+> - The guided tour is a custom built-in panel instead of driver.js.
+> - The Hindi toggle translates navigation and key booking UI, not every page of copy.
+
 > A fictional Indian heritage hotel group, built as a live, clickable pitch:
 > **a luxury guest website + a working Reservation Engine + a Hotel Management System (PMS) + a CRM**, all connected.
 > Anything a guest does on the public site shows up instantly in the back office. That link between the two sides is the main selling point.

@@ -39,12 +39,13 @@ export default function TapeChart() {
   const onDrop = (roomNo: string, date: string) => {
     if (!drag) return
     const b = bookings.find((x) => x.id === drag)
-    const err = moveBooking(drag, roomNo, b?.status === 'checked-in' ? b.checkIn : date)
+    const err = moveBooking(drag, roomNo, b?.status === 'checked-in' || !b?.roomNo ? b!.checkIn : date)
     setDrag(null)
     setHover(null)
     flash(!err, err ?? `Moved to room ${roomNo}`)
   }
 
+  const unassigned = bookings.filter((b) => b.hotelId === hotelId && !b.roomNo && (b.status === 'confirmed' || b.status === 'checked-in') && b.checkOut > T)
   const occTonight = hBookings.filter((b) => b.checkIn <= T && T < b.checkOut && b.status !== 'no-show').length
 
   return (
@@ -71,6 +72,19 @@ export default function TapeChart() {
       <div className="mb-3 flex flex-wrap gap-4 text-xs text-stone">
         {[['Confirmed', 'bg-peacock'], ['In-house', 'bg-leaf'], ['Departed', 'bg-stone/40'], ['Out of order', 'bg-kohl/20 dark:bg-white/20']].map(([l, c]) => <span key={l} className="flex items-center gap-1.5"><span className={clsx('h-3 w-5 rounded', c)} /> {l}</span>)}
       </div>
+      {unassigned.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-sindoor/40 bg-sindoor/5 p-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-sindoor">Unassigned ({unassigned.length}) — drag onto a room</span>
+          {unassigned.map((b) => {
+            const g = gmap.get(b.guestId)
+            return (
+              <button key={b.id} draggable onDragStart={() => setDrag(b.id)} onDragEnd={() => { setDrag(null); setHover(null) }} onClick={() => setOpen(b.id)} className="flex cursor-grab items-center gap-1 rounded-md bg-sindoor px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">
+                <GripVertical size={11} className="opacity-70" /> {g?.lastName}, {g?.firstName?.[0]}. · {format(parseISO(b.checkIn), 'd MMM')} · {nightsBetween(b.checkIn, b.checkOut)}n
+              </button>
+            )
+          })}
+        </div>
+      )}
       <div className="panel overflow-x-auto">
         <div style={{ minWidth: 180 + DAYS * COL }}>
           <div className="sticky top-0 z-10 flex border-b border-kohl/10 bg-white dark:border-white/10 dark:bg-[#1f1d1a]">

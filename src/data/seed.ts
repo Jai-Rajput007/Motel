@@ -28,7 +28,7 @@ export function generateSeed(today = new Date()) {
   const T = iso(today)
 
   // ---- Guests
-  const guests: Guest[] = Array.from({ length: 260 }, (_, i) => {
+  const guests: Guest[] = Array.from({ length: 2400 }, (_, i) => {
     const firstName = pick(FIRST)
     const lastName = pick(LAST)
     const [city, country] = pick(CITIES)
@@ -47,11 +47,14 @@ export function generateSeed(today = new Date()) {
       birthday: `19${int(60, 99)}-${String(int(1, 12)).padStart(2, '0')}-${String(int(1, 28)).padStart(2, '0')}`,
       anniversary: r() < 0.4 ? `20${String(int(0, 22)).padStart(2, '0')}-${String(int(1, 12)).padStart(2, '0')}-${String(int(1, 28)).padStart(2, '0')}` : undefined,
       notes: r() < 0.25 ? pick(['Prefers the same butler as last visit.', 'Celebrated 25th anniversary with us in 2024.', 'Travels with a small dog — arrange pet amenities.', 'Photographer; appreciates sunrise boat access.', 'Board member — send GM welcome note.']) : '',
-      createdAt: iso(subDays(today, int(30, 1400))),
+      createdAt: iso(subDays(today, r() < 0.06 ? int(0, 29) : int(30, 1400))),
       marketingOptIn: r() < 0.72,
       company: corporate ? pick(COMPANIES) : undefined,
     }
   })
+
+  // A loyal core of returning guests, plus a long tail of first-time visitors
+  const pickGuest = () => (r() < 0.28 ? guests[Math.floor(r() * 140)] : pick(guests))
 
   // ---- Rooms
   const rooms: Room[] = []
@@ -71,7 +74,7 @@ export function generateSeed(today = new Date()) {
 
   // ---- Bookings
   const bookings: Booking[] = []
-  const start = subDays(today, 40)
+  const start = subDays(today, 31)
   const end = addDays(today, 55)
   let seq = 1
   const plans = ['bb', 'bb', 'bb', 'ro', 'hb', 'nr']
@@ -86,7 +89,7 @@ export function generateSeed(today = new Date()) {
       const co = iso(addDays(d, len))
       if (d >= end) break
       const rt = roomTypeById(room.roomTypeId)
-      const g = pick(guests)
+      const g = pickGuest()
       const adults = Math.min(rt.maxGuests, int(1, 2) + (r() < 0.2 ? 1 : 0))
       const children = rt.maxGuests - adults > 0 && r() < 0.18 ? 1 : 0
       const ratePlanId = pick(plans)
@@ -128,7 +131,7 @@ export function generateSeed(today = new Date()) {
     const d = addDays(today, int(-35, 50))
     const len = int(1, 4)
     const q = quote({ roomTypeId: rt.id, checkIn: iso(d), checkOut: iso(addDays(d, len)), ratePlanId: 'bb', addOns: [], adults: 2, children: 0 })
-    bookings.push({ id: `b${seq}`, ref: `VR${(100000 + seq * 37).toString(36).toUpperCase().slice(-6)}`, hotelId: h.id, roomTypeId: rt.id, roomNo: null, guestId: pick(guests).id, checkIn: iso(d), checkOut: iso(addDays(d, len)), adults: 2, children: 0, ratePlanId: 'bb', addOns: [], roomTotal: q.roomTotal, addOnTotal: 0, discount: 0, tax: q.tax, total: q.total, paid: 0, status: 'cancelled', source: weighted(SOURCES), createdAt: iso(subDays(d, int(5, 60))), folio: [] })
+    bookings.push({ id: `b${seq}`, ref: `VR${(100000 + seq * 37).toString(36).toUpperCase().slice(-6)}`, hotelId: h.id, roomTypeId: rt.id, roomNo: null, guestId: pickGuest().id, checkIn: iso(d), checkOut: iso(addDays(d, len)), adults: 2, children: 0, ratePlanId: 'bb', addOns: [], roomTotal: q.roomTotal, addOnTotal: 0, discount: 0, tax: q.tax, total: q.total, paid: 0, status: 'cancelled', source: weighted(SOURCES), createdAt: iso(subDays(d, int(5, 60))), folio: [] })
     seq++
   }
 
@@ -143,9 +146,10 @@ export function generateSeed(today = new Date()) {
   }
   for (const g of guests) {
     const s = stats.get(g.id) ?? { nights: 0, spend: 0 }
-    const prior = int(0, 14)
+    const core = Number(g.id.slice(1)) <= 140
+    const prior = core ? int(4, 30) : r() < 0.25 ? int(1, 8) : 0
     const nights = s.nights + prior
-    g.tier = nights >= 40 ? 'Maharaja' : nights >= 25 ? 'Platinum' : nights >= 10 ? 'Gold' : nights >= 3 ? 'Silver' : 'Member'
+    g.tier = nights >= 45 ? 'Maharaja' : nights >= 28 ? 'Platinum' : nights >= 14 ? 'Gold' : nights >= 5 ? 'Silver' : 'Member'
     g.points = Math.round((s.spend / 100) * 5 + prior * 900)
     if (g.tier === 'Maharaja' && !g.tags.includes('VIP')) g.tags.push('VIP')
   }
