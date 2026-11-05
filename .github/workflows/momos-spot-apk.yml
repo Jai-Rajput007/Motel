@@ -17,9 +17,9 @@ jobs:
       run:
         working-directory: momos-spot
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -31,12 +31,14 @@ jobs:
           npm test
           npm run build
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       # Signing: if the repository has the MOMOS_KEYSTORE_BASE64 / MOMOS_KEYSTORE_PASSWORD secrets, use that key.
       # Otherwise keep reusing one cached debug key, so each new APK still installs as an update.
