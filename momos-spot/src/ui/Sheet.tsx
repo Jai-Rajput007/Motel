@@ -66,7 +66,7 @@ export function Sheet({
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4">{children}</div>
-        {footer && <div className="pb-safe border-t border-line bg-surface px-5 pt-3 pb-3">{footer}</div>}
+        {footer && <div className="border-t border-line bg-surface px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>}
       </div>
     </div>,
     document.body,
