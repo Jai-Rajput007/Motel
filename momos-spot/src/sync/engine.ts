@@ -3,7 +3,10 @@ import type { Base } from '../db/types'
 import { onLocalChange } from '../db/write'
 import { getClient, readConfig, writeConfig, type CloudConfig } from './config'
 
-export type SyncState = 'off' | 'offline' | 'idle' | 'syncing' | 'error'
+/** off = no cloud project; signin = project known but this phone has not signed in yet */
+export type SyncState = 'off' | 'signin' | 'offline' | 'idle' | 'syncing' | 'error'
+
+class NotSignedIn extends Error {}
 
 export interface SyncStatus {
   state: SyncState
@@ -37,7 +40,7 @@ async function userId(): Promise<string> {
   const { data, error } = await sb.auth.getSession()
   if (error) throw error
   const id = data.session?.user.id
-  if (!id) throw new Error('Not signed in to the cloud. Open Settings → Cloud backup.')
+  if (!id) throw new NotSignedIn('Not signed in to the cloud yet. Open Settings → Cloud backup.')
   return id
 }
 
@@ -120,6 +123,10 @@ export async function syncNow(): Promise<void> {
     await setMeta('lastSyncAt', at)
     set({ state: 'idle', lastSyncAt: at })
   } catch (e) {
+    if (e instanceof NotSignedIn) {
+      set({ state: 'signin', error: undefined })
+      return
+    }
     const msg = e instanceof Error ? e.message : String(e)
     const offline = /fetch|network|Failed to fetch|NetworkError/i.test(msg)
     set({ state: offline ? 'offline' : 'error', error: offline ? undefined : msg })
@@ -211,7 +218,7 @@ export async function disconnectCloud() {
     /* ignore */
   }
   writeConfig(null)
-  set({ state: 'off', error: undefined })
+  set({ state: readConfig() ? 'signin' : 'off', error: undefined })
 }
 
 export async function pendingCount() {

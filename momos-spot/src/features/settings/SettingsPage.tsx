@@ -8,7 +8,7 @@ import { useOnline, usePending, useSettings, useSyncStatus } from '../../hooks'
 import { formatDateTime } from '../../lib/dates'
 import { inr, toPaise } from '../../lib/money'
 import { connectCloud, disconnectCloud, requeueAll, syncNow } from '../../sync/engine'
-import { readConfig } from '../../sync/config'
+import { builtInConfig, readConfig } from '../../sync/config'
 import { attempt, confirmDialog, promptDialog, toast } from '../../ui/feedback'
 import { AmountInput, Button, Card, Field, Page, SectionTitle, Segmented, Select, TextInput, Toggle } from '../../ui/kit'
 
@@ -123,6 +123,8 @@ function CloudSection() {
   const pending = usePending()
   const online = useOnline()
   const cfg = readConfig()
+  const builtIn = builtInConfig()
+  const needsForm = st.state === 'off' || st.state === 'signin'
   const [url, setUrl] = useState(cfg?.url ?? '')
   const [key, setKey] = useState(cfg?.anonKey ?? '')
   const [email, setEmail] = useState(cfg?.email ?? '')
@@ -138,10 +140,10 @@ function CloudSection() {
       <SectionTitle>Cloud backup & sync</SectionTitle>
       <Card>
         <div className="mb-3 flex items-center gap-3">
-          {st.state === 'off' ? <CloudOff className="text-muted" /> : <Cloud className={st.state === 'error' ? 'text-bad' : 'text-good'} />}
+          {needsForm ? <CloudOff className="text-muted" /> : <Cloud className={st.state === 'error' ? 'text-bad' : 'text-good'} />}
           <div className="min-w-0 flex-1">
             <div className="font-semibold">
-              {st.state === 'off' ? 'Not connected' : !online ? 'Offline. Will sync when internet is back' : st.state === 'error' ? 'Sync problem' : st.state === 'syncing' ? 'Syncing…' : 'Connected'}
+              {st.state === 'off' ? 'Not connected' : st.state === 'signin' ? 'Sign in once to start syncing' : !online ? 'Offline. Will sync when internet is back' : st.state === 'error' ? 'Sync problem' : st.state === 'syncing' ? 'Syncing…' : 'Connected'}
             </div>
             <div className="text-sm text-muted">
               {pending} change{pending === 1 ? '' : 's'} waiting to upload
@@ -151,18 +153,26 @@ function CloudSection() {
         </div>
         {st.error && <div className="mb-3 rounded-2xl bg-bad-soft p-3 text-sm text-bad">{st.error}</div>}
 
-        {st.state === 'off' ? (
+        {needsForm ? (
           <>
-            <p className="mb-3 text-sm text-muted">
-              Everything is saved on this phone already. Connect a free Supabase project to keep a copy in the cloud, so nothing is lost if the phone is lost or reset.
-              Steps are in the README (supabase/schema.sql).
-            </p>
-            <Field label="Project URL">
-              <TextInput value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" autoCapitalize="none" />
-            </Field>
-            <Field label="Anon public key">
-              <TextInput value={key} onChange={(e) => setKey(e.target.value)} placeholder="eyJ…" autoCapitalize="none" />
-            </Field>
+            {builtIn ? (
+              <p className="mb-3 text-sm text-muted">
+                The cloud project is already set up in this app. Sign in once with your email and a password. The first time, this creates your account. The phone stays signed in after that.
+              </p>
+            ) : (
+              <>
+                <p className="mb-3 text-sm text-muted">
+                  Everything is saved on this phone already. Connect a free Supabase project to keep a copy in the cloud, so nothing is lost if the phone is lost or reset.
+                  Steps are in the README (supabase/schema.sql).
+                </p>
+                <Field label="Project URL">
+                  <TextInput value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" autoCapitalize="none" />
+                </Field>
+                <Field label="Anon public key">
+                  <TextInput value={key} onChange={(e) => setKey(e.target.value)} placeholder="eyJ…" autoCapitalize="none" />
+                </Field>
+              </>
+            )}
             <Field label="Email (your one account)">
               <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoCapitalize="none" />
             </Field>
@@ -171,10 +181,11 @@ function CloudSection() {
             </Field>
             <Button
               block
-              disabled={busy || !url || !key || !email || password.length < 6}
+              disabled={busy || (!builtIn && (!url || !key)) || !email || password.length < 6}
               onClick={async () => {
                 setBusy(true)
-                const ok = await attempt(() => connectCloud({ url, anonKey: key, email }, password))
+                const target = builtIn ?? { url, anonKey: key }
+                const ok = await attempt(() => connectCloud({ ...target, email }, password))
                 setBusy(false)
                 if (ok) {
                   setPassword('')
@@ -182,7 +193,7 @@ function CloudSection() {
                 }
               }}
             >
-              {busy ? 'Connecting…' : 'Connect'}
+              {busy ? 'Connecting…' : builtIn ? 'Sign in & start syncing' : 'Connect'}
             </Button>
           </>
         ) : (

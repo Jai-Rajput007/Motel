@@ -68,7 +68,7 @@ export default function TodayPage() {
     .sort((a, b) => (a.o.date < b.o.date ? -1 : 1))
 
   const backupDue =
-    sync.state === 'off' && settings.backupReminderDays > 0 && (t?.orders ?? 0) + (data?.sales.length ?? 0) > 0 && (!extra?.lastBackup || diffDays(keyOfLocalDate(new Date(extra.lastBackup)), today) >= settings.backupReminderDays)
+    (sync.state === 'off' || sync.state === 'signin') && settings.backupReminderDays > 0 && (t?.orders ?? 0) + (data?.sales.length ?? 0) > 0 && (!extra?.lastBackup || diffDays(keyOfLocalDate(new Date(extra.lastBackup)), today) >= settings.backupReminderDays)
   const expectedCash = t ? (extra?.session?.opening ?? 0) + t.cashIn + t.creditCollectedCash - t.purchasesCash - t.expensesCash : 0
   const profit = t ? Math.round(t.profitSpread) : 0
 
@@ -101,10 +101,16 @@ export default function TodayPage() {
           </Card>
         )}
 
+        {sync.state === 'signin' && (
+          <button onClick={() => nav('/settings#cloud')} className="mb-3 flex w-full items-center gap-2 rounded-2xl bg-info-soft px-4 py-3 text-left text-sm font-medium text-info">
+            <AlertTriangle size={18} className="shrink-0" />
+            <span className="flex-1">Cloud backup is ready. Sign in once (email + password) to start syncing. Tap here.</span>
+          </button>
+        )}
         {backupDue && (
           <button onClick={() => nav('/reports')} className="mb-3 flex w-full items-center gap-2 rounded-2xl bg-warn-soft px-4 py-3 text-left text-sm font-medium text-warn">
             <AlertTriangle size={18} className="shrink-0" />
-            <span className="flex-1">Cloud backup is off. {extra?.lastBackup ? `Last backup file ${relativeDay(keyOfLocalDate(new Date(extra.lastBackup))).toLowerCase()}.` : 'No backup file yet.'} Tap to save one.</span>
+            <span className="flex-1">{sync.state === 'signin' ? 'Not backed up yet.' : 'Cloud backup is off.'} {extra?.lastBackup ? `Last backup file ${relativeDay(keyOfLocalDate(new Date(extra.lastBackup))).toLowerCase()}.` : 'No backup file yet.'} Tap to save one.</span>
           </button>
         )}
         {sync.state === 'error' && (

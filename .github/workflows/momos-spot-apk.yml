@@ -26,6 +26,10 @@ jobs:
           cache-dependency-path: momos-spot/package-lock.json
 
       - name: Install, test and build the app
+        env:
+          # Optional: the cloud project built into the app (repository variables or secrets)
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm ci
           npm test

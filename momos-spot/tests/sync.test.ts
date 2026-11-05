@@ -22,8 +22,9 @@ function query() {
   }
   return q
 }
+let signedIn = true
 const fakeClient = {
-  auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } }, error: null }) },
+  auth: { getSession: async () => ({ data: { session: signedIn ? { user: { id: 'u1' } } : null }, error: null }) },
   from: () => ({
     upsert: async (rows: Rec[]) => {
       for (const r of rows) {
@@ -56,11 +57,25 @@ async function wipePhone() {
 }
 
 beforeEach(async () => {
+  signedIn = true
   server.clear()
   await wipePhone()
 })
 
 describe('offline-first sync', () => {
+  it('waits quietly for sign-in when the cloud project is known but the phone is not signed in', async () => {
+    signedIn = false
+    const item = await createItem({ name: 'Paneer', categoryId: 'cat-meat', unit: 'kg' })
+    await syncNow()
+    expect(getStatus().state).toBe('signin')
+    expect(getStatus().error).toBeUndefined()
+    expect(await db.outbox.count()).toBeGreaterThan(0) // kept until sign-in
+    signedIn = true
+    await syncNow()
+    expect(getStatus().state).toBe('idle')
+    expect([...server.values()].some((r) => r.id === item.id)).toBe(true)
+  })
+
   it('queues changes made offline and uploads them later', async () => {
     const onion = await createItem({ name: 'Onion', categoryId: 'cat-veg', unit: 'kg' })
     await addPurchases([{ itemId: onion.id, qty: 2, unit: 'kg', amount: 8000, at: new Date().toISOString(), payMode: 'cash' }])

@@ -8,6 +8,14 @@ export interface CloudConfig {
 
 const KEY = 'momos.cloud'
 
+/** Cloud project built into the app at build time (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). */
+export function builtInConfig(): CloudConfig | null {
+  const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim()
+  const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim()
+  return url && anonKey ? { url: url.replace(/\/+$/, ''), anonKey } : null
+}
+
+/** Details typed in Settings win over the built-in project. */
 export function readConfig(): CloudConfig | null {
   try {
     const raw = localStorage.getItem(KEY)
@@ -15,9 +23,7 @@ export function readConfig(): CloudConfig | null {
   } catch {
     /* ignore */
   }
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-  return url && anonKey ? { url, anonKey } : null
+  return builtInConfig()
 }
 
 export function writeConfig(c: CloudConfig | null) {
