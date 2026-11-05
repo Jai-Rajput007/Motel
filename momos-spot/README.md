@@ -47,6 +47,8 @@ Each time the code changes, a new APK is built automatically by the GitHub Actio
 
 The app works fully without this, but with it your data survives a lost or broken phone.
 
+> **Already set up for The Momos Spot:** the Supabase project *inventory-manager* is built into the app (`.env.production`, URL and public anon key only). The phone just asks you to **sign in once** with an email and password (More → Settings → Cloud backup & sync). Steps 1–5 below are for setting up a different project. Steps 2 and 3 must be done once in the project.
+
 1. Go to [supabase.com](https://supabase.com), sign up, and click **New project** (free plan, region *Mumbai*). Save the database password somewhere.
 2. In the project, open **SQL Editor → New query**, paste everything from [`supabase/schema.sql`](./supabase/schema.sql) and click **Run**.
 3. Open **Authentication → Sign In / Providers → Email** and turn **off** "Confirm email". (Optional: turn off "Allow new users to sign up" *after* step 5, so nobody else can create an account.)

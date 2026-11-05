@@ -27,13 +27,18 @@ jobs:
 
       - name: Install, test and build the app
         env:
-          # Optional: the cloud project built into the app (repository variables or secrets)
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+          # Optional override of the cloud project in momos-spot/.env.production
+          # (repository variables or secrets VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)
+          CLOUD_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          CLOUD_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
+          if [ -n "$CLOUD_URL" ] && [ -n "$CLOUD_KEY" ]; then
+            export VITE_SUPABASE_URL="$CLOUD_URL" VITE_SUPABASE_ANON_KEY="$CLOUD_KEY"
+          fi
           npm ci
           npm test
           npm run build
+          grep -q "supabase.co" dist/assets/*.js && echo "Cloud project is built in." || echo "No cloud project built in."
 
       - uses: actions/setup-java@v5
         with:
