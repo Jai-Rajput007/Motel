@@ -49,34 +49,59 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
-      # Signing: if the repository has the MOMOS_KEYSTORE_BASE64 / MOMOS_KEYSTORE_PASSWORD secrets, use that key.
-      # Otherwise keep reusing one cached debug key, so each new APK still installs as an update.
-      - name: Use release key from secrets
+      # Signing: Android only installs an update signed with the same key as the installed app.
+      # If the MOMOS_KEYSTORE_BASE64 / MOMOS_KEYSTORE_PASSWORD secrets exist, that key is used.
+      # Otherwise one key is generated on the first build and kept in this repository's private
+      # Actions cache (never in the code), so every later build is signed the same way.
+      - name: Restore the app signing key
+        id: keycache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/momos-signing
+          key: momos-spot-signing-key-v1
+
+      - name: Choose the signing key
         env:
           KS_B64: ${{ secrets.MOMOS_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.MOMOS_KEYSTORE_PASSWORD }}
         run: |
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/momos.keystore"
             echo "MOMOS_KEYSTORE_FILE=$RUNNER_TEMP/momos.keystore" >> "$GITHUB_ENV"
+            echo "MOMOS_KEYSTORE_PASSWORD=$KS_PASS" >> "$GITHUB_ENV"
+            echo "KEY_SOURCE=secret" >> "$GITHUB_ENV"
+            echo "Signing with the key from repository secrets."
           else
-            echo "No release key secret; using the cached debug key."
+            mkdir -p "$HOME/momos-signing"
+            if [ ! -f "$HOME/momos-signing/momos.keystore" ]; then
+              keytool -genkeypair -keystore "$HOME/momos-signing/momos.keystore" -alias momosspot \
+                -keyalg RSA -keysize 2048 -validity 36500 -storepass android -keypass android \
+                -dname "CN=The Momos Spot, O=The Momos Spot, C=IN"
+              echo "Created a new signing key (first build)."
+            else
+              echo "Reusing the saved signing key."
+            fi
+            echo "MOMOS_KEYSTORE_FILE=$HOME/momos-signing/momos.keystore" >> "$GITHUB_ENV"
+            echo "MOMOS_KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
+            echo "KEY_SOURCE=cache" >> "$GITHUB_ENV"
           fi
-
-      - name: Reuse the debug signing key
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: momos-spot-debug-keystore
 
       - name: Build APK
         env:
           VERSION_CODE: ${{ github.run_number }}
-          MOMOS_KEYSTORE_PASSWORD: ${{ secrets.MOMOS_KEYSTORE_PASSWORD }}
         run: |
           npx cap sync android
           cd android
           ./gradlew assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk ../MomosSpot.apk
+          "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs ../MomosSpot.apk | grep -i "SHA-256"
+
+      - name: Save the app signing key
+        if: steps.keycache.outputs.cache-hit != 'true' && env.KEY_SOURCE == 'cache'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/momos-signing
+          key: momos-spot-signing-key-v1
 
       - uses: actions/upload-artifact@v4
         with:

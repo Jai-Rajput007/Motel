@@ -33,11 +33,11 @@ The full product plan is in [`PLAN.md`](./PLAN.md).
 
 Each time the code changes, a new APK is built automatically by the GitHub Action *Momos Spot · Android APK*. Install it the same way and it **updates** the app. All data stays.
 
-> **About updates and the signing key.** Android only installs an update if it is signed with the same key as the installed app. The workflow keeps reusing one cached key, so normal updates just work. For a permanent key that can never be lost, add two repository secrets once (Settings → Secrets and variables → Actions):
+> **About updates and the signing key.** Android only installs an update if it is signed with the same key as the installed app. The workflow creates one key on its first build and keeps it in this repository's private GitHub Actions cache, so every later build is signed the same way. Two things can still change that key: the cache is cleared after 7 days with no builds, and a cache made on one branch isn't visible from another. For a permanent key, add two repository secrets once (Settings → Secrets and variables → Actions):
 > - `MOMOS_KEYSTORE_BASE64`: your keystore file in base64 (`keytool -genkeypair -keystore momos.keystore -alias momosspot -keyalg RSA -validity 36500`, then `base64 -w0 momos.keystore`)
 > - `MOMOS_KEYSTORE_PASSWORD`: its password
 >
-> If Android ever says "App not installed" during an update, the key changed. Your data is safe in the cloud and the backup file: uninstall, install the new APK, and connect the cloud again (or restore the backup file).
+> If Android ever says "App not installed" during an update, the key changed. Your data is safe in the cloud and the backup file: uninstall, install the new APK, and sign in again (or restore the backup file).
 
 **No Android phone, or want a quick try?** The same app runs in Chrome as an installable web app (PWA). Deploy this folder on Vercel (Root Directory: `momos-spot`), open the link in Chrome and tap **Add to Home screen**. It also works offline after the first open.
 
