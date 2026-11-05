@@ -1,0 +1,86 @@
+name: Momos Spot · Android APK
+
+on:
+  push:
+    paths:
+      - 'momos-spot/**'
+      - '.github/workflows/momos-spot-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: momos-spot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: momos-spot/package-lock.json
+
+      - name: Install, test and build the app
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      # Signing: if the repository has the MOMOS_KEYSTORE_BASE64 / MOMOS_KEYSTORE_PASSWORD secrets, use that key.
+      # Otherwise keep reusing one cached debug key, so each new APK still installs as an update.
+      - name: Use release key from secrets
+        env:
+          KS_B64: ${{ secrets.MOMOS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/momos.keystore"
+            echo "MOMOS_KEYSTORE_FILE=$RUNNER_TEMP/momos.keystore" >> "$GITHUB_ENV"
+          else
+            echo "No release key secret; using the cached debug key."
+          fi
+
+      - name: Reuse the debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: momos-spot-debug-keystore
+
+      - name: Build APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          MOMOS_KEYSTORE_PASSWORD: ${{ secrets.MOMOS_KEYSTORE_PASSWORD }}
+        run: |
+          npx cap sync android
+          cd android
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../MomosSpot.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MomosSpot-apk
+          path: momos-spot/MomosSpot.apk
+
+      - name: Publish as the latest download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: momos-spot-latest
+          name: The Momos Spot app (latest)
+          prerelease: false
+          make_latest: false
+          body: |
+            Download **MomosSpot.apk** on the shop phone and open it to install or update.
+            Build ${{ github.run_number }} from `${{ github.ref_name }}` (${{ github.sha }}).
+            Updates install over the old version and keep all data.
+          files: momos-spot/MomosSpot.apk

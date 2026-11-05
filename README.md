@@ -1,5 +1,7 @@
 # Virasat Palaces & Resorts — Hotel Website, Booking Engine, PMS & CRM
 
+> This repository also contains **[The Momos Spot](./momos-spot/)**, an offline-first shop manager app for Android (sales, stock, gas, expenses, loyalty and profit). See [`momos-spot/README.md`](./momos-spot/README.md).
+
 A complete, working showcase for pitching web development to hotels.
 It shows a fictional Indian heritage hotel group with six properties, built as four connected products:
 

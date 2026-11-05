@@ -1,7 +1,17 @@
 # The Momos Spot — Shop Manager App: Product & Technical Plan
 
+> **Status: built.** See [`README.md`](./README.md) for installing on the phone, turning on cloud backup, and development.
+> Small changes from this plan: rewards are given on the next visit only (there is no "same bill" option); a fixed cost can be paused for a period; the monthly report is a printable page (Save as PDF) rather than a generated PDF file.
+
 > A phone-first app for running **The Momos Spot**. It logs every rupee coming in (sales) and going out (vegetables, packaged stock, gas, rent, EMIs, salaries, one-off spends), puts it all on a calendar, and shows profit live.
 > It is used by **one person**, so there are no logins or user accounts. It **works fully without internet** and syncs to the cloud when the network comes back, so data is not lost if the phone is lost, reset or broken.
+
+> **Owner's answers (5 Nov 2026), now part of the plan:**
+> - **Delivery:** one flat home-delivery charge per order, the same for every item, set in Settings (it can be changed for a single order if needed). There are no per-item delivery prices.
+> - **Loyalty:** all three trigger types, plus total spend, are configured on the Offers page. Any number of offers can be created.
+> - **Phone:** Android only, using one phone. The app is delivered as an APK, and the PWA remains available as a fallback.
+> - **Language:** English only.
+> - **Sizes:** menu items can have optional sizes/variants (Half/Full, 6 pcs/10 pcs). They live in an **Advanced** section of the menu item editor. While selling, a new size can be added from the size chooser, and a line's price can be changed in the cart's Advanced options.
 
 ---
 
@@ -116,14 +126,14 @@ Bought (in stock) ──► Connected (in use) ──► Empty ──► Returne
 
 #### Menu management (More → Menu)
 - Categories: Steamed, Fried, Tandoori, Soups, Drinks, and so on, with a custom order.
-- Item: name, **counter price**, **home-delivery price** (optional, see Settings), optional **variants** (Half/Full, 5 pcs/10 pcs, Veg/Chicken/Paneer), an "available" switch for when an item is sold out today, and a sort order.
+- Item: name, **price**, optional **variants** in the Advanced section (Half/Full, 5 pcs/10 pcs, Veg/Chicken/Paneer), an "available" switch for when an item is sold out today, and a sort order.
 - Edit and archive. Changing a price affects **future** sales only. Every sale stores the name and price at the time it was made, so old bills and reports never change.
 - Deleting an item that was ever sold **archives** it, which hides it from the menu but keeps its history. Items that were never sold can be fully deleted.
 
 #### Making a sale
 1. **Menu grid** of large tiles, with category tabs and search. Tapping a tile adds 1; tapping again adds another. Long-press or a "−" button removes one. Variants open a small chooser. The **most-sold items show first**.
 2. **Cart bar** at the bottom showing items, quantity and total. It expands into the cart.
-3. **Home delivery** toggle. When it is on, delivery pricing from Settings applies (per-item delivery prices and/or a flat delivery fee), and an optional address/landmark and phone field appears.
+3. **Home delivery** toggle. When it is on, the flat delivery charge from Settings is added to the bill (it can be changed for that order), and an optional address/landmark and phone field appears.
 4. **Customer**:
    - Type a name: matching existing customers are suggested ("Rahul (…4321), 7 visits"), or a new one is created.
    - Or switch on **Guest**: a short unique code such as `G-7K3P` is created. A guest can later be **converted** into a named customer, so their earlier visits are kept.
@@ -238,7 +248,7 @@ Common in local shops, and a frequent source of lost money.
 
 ### 2.11 Settings
 - Shop name, UPI ID (for QR codes), currency format
-- **Delivery pricing**: per-item delivery prices on/off, flat delivery fee (₹), optional free delivery above ₹X
+- **Delivery charge**: one flat fee per order (₹), optional free delivery above ₹X
 - Business day cut-off time
 - Default payment mode, cash quick-amount chips
 - Units and categories (add/rename)
@@ -308,8 +318,7 @@ gas_cylinders         purchase_id, status (in_stock|in_use|empty|returned),
                       bought_at, connected_at?, emptied_at?, returned_at?, price_paise
 
 menu_categories       name, sort
-menu_items            category_id, name, price_paise, delivery_price_paise?, available, archived, sort
-menu_variants         menu_item_id, name, price_paise, delivery_price_paise?, sort
+menu_items            category_id, name, price_paise, variants[] (id, name, price_paise), available, archived, sort
 
 customers             name, name_normalized, phone?, is_guest, guest_code?, merged_into_id?, note
 sales                 bill_no, business_date, sold_at, customer_id?, is_delivery, address?,
@@ -365,7 +374,7 @@ Key calculations (all in one tested module, `lib/calc`):
 **Menu and prices**
 - Bills store names and prices at the time of sale. Changing prices never changes history.
 - Archived items stay in reports. Sold-out items are hidden from the grid for that day only.
-- An item without its own delivery price falls back to the counter price + the flat delivery fee.
+- Delivery adds one flat charge per order. Free delivery above ₹X is optional.
 
 **Inventory**
 - Duplicate item names are blocked (case and spacing ignored). Existing duplicates can be merged.
@@ -434,11 +443,6 @@ Sync (phase 9) is designed from phase 1: the data shapes, IDs and outbox exist f
 
 ---
 
-## 8. Open questions (defaults used if not answered)
+## 8. Open questions
 
-1. **Delivery pricing**: does each item have its own home-delivery price, or is it the normal price plus one delivery fee per order? *Default: both are supported. Per-item delivery prices where set, otherwise counter price + flat fee.*
-2. **Loyalty "straight this much time"**: N orders in total, N orders within some days, or N days in a row? *Default: all three are available as rule types. The first rule set up will be "every 5 orders".*
-3. **Phone**: Android or iPhone? *Default: Android APK + PWA. On iPhone it works as an installed PWA.*
-4. **Will more than one phone be used** (e.g. a second phone at the counter)? *Default: supported through sync. One phone is the expected case.*
-5. **Language**: English only, or Hindi/Hinglish labels too? *Default: English, built so Hindi can be added.*
-6. **Menu variants**: are there half/full plates or piece counts (6 pcs/10 pcs)? *Default: variants supported.*
+All answered. See the owner's answers at the top of this plan.

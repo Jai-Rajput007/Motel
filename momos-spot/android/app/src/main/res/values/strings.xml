@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Momos Spot</string>
+    <string name="title_activity_main">Momos Spot</string>
+    <string name="package_name">com.themomosspot.manager</string>
+    <string name="custom_url_scheme">com.themomosspot.manager</string>
+</resources>
